@@ -10,12 +10,11 @@ import (
 	"github.com/gocolly/colly"
 )
 
+// 生成包含表单数据的map
 func generateFormData() map[string][]byte {
 	f, _ := os.Open("gocolly.jpg")
 	defer f.Close()
-
 	imgData, _ := ioutil.ReadAll(f)
-
 	return map[string][]byte{
 		"firstname": []byte("one"),
 		"lastname":  []byte("two"),
@@ -24,6 +23,7 @@ func generateFormData() map[string][]byte {
 	}
 }
 
+// 创建HTTP服务器并等待POST请求
 func setupServer() {
 	var handler http.HandlerFunc = func(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("received request")
@@ -38,29 +38,29 @@ func setupServer() {
 		fmt.Println("server: OK")
 		w.Write([]byte("<html><body>Success</body></html>"))
 	}
-
 	go http.ListenAndServe(":8080", handler)
 }
-
 func main() {
-	// Start a single route http server to post an image to.
+	// 创建一个包含表单数据的map
+	formData := generateFormData()
+	// 创建HTTP服务器并等待POST请求
 	setupServer()
-
+	// 创建一个Colly Collector对象
 	c := colly.NewCollector(colly.AllowURLRevisit(), colly.MaxDepth(5))
-
-	// On every a element which has href attribute call callback
+	// 在每个a元素上调用回调函数
 	c.OnHTML("html", func(e *colly.HTMLElement) {
+		// 输出每个HTML页面的文本
 		fmt.Println(e.Text)
+		// 延迟1秒
 		time.Sleep(1 * time.Second)
-		e.Request.PostMultipart("http://localhost:8080/", generateFormData())
+		// 将表单数据作为multipart/form-data格式的POST请求发送到HTTP服务器
+		e.Request.PostMultipart("http://localhost:8080/", formData)
 	})
-
-	// Before making a request print "Visiting ..."
+	// 在发送请求之前输出"Visiting ..."
 	c.OnRequest(func(r *colly.Request) {
 		fmt.Println("Posting gocolly.jpg to", r.URL.String())
 	})
-
-	// Start scraping
-	c.PostMultipart("http://localhost:8080/", generateFormData())
+	// 开始爬取
+	c.PostMultipart("http://localhost:8080/", formData)
 	c.Wait()
 }
